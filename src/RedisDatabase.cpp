@@ -289,7 +289,7 @@ bool RedisDatabase::lset(const std::string& key, int index, const std::string& v
     }
     bool RedisDatabase::hdel(const std::string& key, const std::string& field){
         std::lock_guard<std::mutex> lock(db_mutex);
-        std::lock_guard<std::mutex> lock(db_mutex);
+        
         auto it =hash_Store.find(key);
         if(it !=hash_Store.end()){
             return it->second.erase(field)>0;

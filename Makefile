@@ -1,30 +1,66 @@
 CXX = g++
 CXXFLAGS = -std=c++17 -pthread -Wall -MMD -MP -O2
 
+# Server directories
 SRC_DIR = src
 BUILD_DIR = build
 
-SRCS := $(wildcard $(SRC_DIR)/*.cpp)#	list all cpp files in src
-OBJS := $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/%.o,$(SRCS))#	replace src with build and .cpp with .o
+# Client directories
+CLIENT_DIR = Redis-Client
+CLIENT_BUILD_DIR = build-client
 
-TARGET = redis-lite
+# Server files
+SRCS := $(wildcard $(SRC_DIR)/*.cpp)
+OBJS := $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/%.o,$(SRCS))
 
-all: $(TARGET)
+# Client files
+CLIENT_SRCS := $(wildcard $(CLIENT_DIR)/*.cpp)
+CLIENT_OBJS := $(patsubst $(CLIENT_DIR)/%.cpp,$(CLIENT_BUILD_DIR)/%.o,$(CLIENT_SRCS))
 
+# Targets
+SERVER_TARGET = redis-lite
+CLIENT_TARGET = redis-cli
+
+# Build both by default
+all: $(SERVER_TARGET) $(CLIENT_TARGET)
+
+# Server build rules
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
-$(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp | $(BUILD_DIR)# pattern rule to compile cpp to o
-	$(CXX) $(CXXFLAGS) -c $< -o $@               # $< is the first prerequisite (the source file)
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-$(TARGET): $(OBJS)
-	$(CXX) $(CXXFLAGS) $(OBJS) -o $(TARGET)
+$(SERVER_TARGET): $(OBJS)
+	$(CXX) $(CXXFLAGS) $(OBJS) -o $(SERVER_TARGET)
 
+# Client build rules
+$(CLIENT_BUILD_DIR):
+	mkdir -p $(CLIENT_BUILD_DIR)
+
+$(CLIENT_BUILD_DIR)/%.o: $(CLIENT_DIR)/%.cpp | $(CLIENT_BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+$(CLIENT_TARGET): $(CLIENT_OBJS)
+	$(CXX) $(CXXFLAGS) $(CLIENT_OBJS) -o $(CLIENT_TARGET)
+
+# Individual targets
+server: $(SERVER_TARGET)
+client: $(CLIENT_TARGET)
+
+# Run targets
+run-server: $(SERVER_TARGET)
+	./$(SERVER_TARGET)
+
+run-client: $(CLIENT_TARGET)
+	./$(CLIENT_TARGET)
+
+# Clean
 clean:
-	rm -rf $(BUILD_DIR) $(TARGET) # remove build directory and target executable
+	rm -rf $(BUILD_DIR) $(CLIENT_BUILD_DIR) $(SERVER_TARGET) $(CLIENT_TARGET)
 
 rebuild: clean all
-run: all
-	./$(TARGET)
+
+.PHONY: all server client run-server run-client clean rebuild
 
 

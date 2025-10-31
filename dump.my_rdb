@@ -1,6 +1,4 @@
-K name Alice
-K city Berlin
-L fruits apple banana orange
-L colours red green blue
-H user:100 name:bob age:30 email:bob@example.com
-H user:200 name:Eve age:25 email:eve@example.com
+Lfruits apple banana orange
+Lcolours green blue
+Huser:100 name:bob age:30 email:bob@example.com
+Huser:200 name:Eve age:25 email:eve@example.com
