@@ -26,7 +26,7 @@ public:
     //expire
 
     bool expire(const std::string& key,const int seconds);
-
+    void purgeExpired();
     //rename
     bool rename(const std::string oldKey,const std::string newKey);
     //list operations
