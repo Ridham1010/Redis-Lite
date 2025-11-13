@@ -52,9 +52,15 @@ std::string getNextTask(RedisClient& client) {
 void processTask(RedisClient& client, const std::string& taskId, int workerId) {
     std::cout << "[WORKER-" << workerId << "] Processing: " << taskId << std::endl;
     
-    // Update status to processing
+    // Update task status to processing
     client.hset(taskId, "status", "processing");
     client.hset(taskId, "worker_id", std::to_string(workerId));
+    
+    // Update worker status (for dashboard tracking)
+    std::string workerKey = "worker:" + std::to_string(workerId);
+    client.hset(workerKey, "status", "processing");
+    client.hset(workerKey, "current_task", taskId);
+    client.hset(workerKey, "last_seen", std::to_string(time(nullptr)));
     
     // Get task details
     std::string details = client.hgetall(taskId);
@@ -62,9 +68,14 @@ void processTask(RedisClient& client, const std::string& taskId, int workerId) {
     // Simulate work (different task types take different time)
     std::this_thread::sleep_for(std::chrono::milliseconds(500 + rand() % 1500));
     
-    // Mark as completed
+    // Mark task as completed
     client.hset(taskId, "status", "completed");
     client.hset(taskId, "completed_at", std::to_string(time(nullptr)));
+    
+    // Update worker status to idle
+    client.hset(workerKey, "status", "idle");
+    client.hset(workerKey, "current_task", "");
+    client.hset(workerKey, "last_seen", std::to_string(time(nullptr)));
     
     // Add to completed list
     client.lpush("tasks:completed", taskId);
@@ -84,6 +95,13 @@ void workerLoop(int workerId) {
     
     std::cout << "[WORKER-" << workerId << "] Connected to Redis-Lite\n";
     
+    // Register worker on startup
+    std::string workerKey = "worker:" + std::to_string(workerId);
+    client.hset(workerKey, "status", "idle");
+    client.hset(workerKey, "current_task", "");
+    client.hset(workerKey, "started_at", std::to_string(time(nullptr)));
+    client.hset(workerKey, "last_seen", std::to_string(time(nullptr)));
+    
     int tasksProcessed = 0;
     
     while (running) {
@@ -93,10 +111,17 @@ void workerLoop(int workerId) {
             processTask(client, taskId, workerId);
             tasksProcessed++;
         } else {
-            // No tasks, wait a bit
+            // No tasks, update heartbeat
+            client.hset(workerKey, "status", "idle");
+            client.hset(workerKey, "last_seen", std::to_string(time(nullptr)));
+            
+            // Wait a bit
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
         }
     }
+    
+    // Cleanup: remove worker from registry on shutdown
+    client.command({"DEL", workerKey});
     
     std::cout << "[WORKER-" << workerId << "] Stopped. Tasks processed: " << tasksProcessed << "\n";
 }

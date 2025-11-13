@@ -2,47 +2,117 @@
 #include <iostream>
 #include <thread>
 #include <chrono>
-#include <random>
+#include <vector>
+#include <map>
+#include <sstream>
+#include <iomanip>
 
-// Task types
+// 10 predefined task types
 const std::vector<std::string> TASK_TYPES = {
     "send_email",
-    "process_payment",
+    "process_payment", 
     "generate_report",
     "resize_image",
-    "backup_database"
+    "backup_database",
+    "send_notification",
+    "compress_video",
+    "export_data",
+    "update_inventory",
+    "cleanup_logs"
 };
+
+// Track created tasks
+std::map<std::string, std::string> createdTasks;  // taskId -> taskType
+int tasksCreatedThisSession = 0;  // Track tasks created in current run
+int tasksCompletedThisSession = 0;  // Track tasks completed in current run
 
 std::string generateTaskId() {
     static int counter = 1000;
     return "task:" + std::to_string(counter++);
 }
 
-std::string randomTaskType() {
-    static std::random_device rd;
-    static std::mt19937 gen(rd());
-    static std::uniform_int_distribution<> dis(0, TASK_TYPES.size() - 1);
-    return TASK_TYPES[dis(gen)];
+void clearScreen() {
+    std::cout << "\033[2J\033[1;1H";  // ANSI clear screen
 }
 
-std::string randomPriority() {
-    static std::random_device rd;
-    static std::mt19937 gen(rd());
-    static std::uniform_int_distribution<> dis(1, 100);
-    int rand = dis(gen);
+void printHeader() {
+    std::cout << "╔════════════════════════════════════════════════════════╗\n";
+    std::cout << "║                                                        ║\n";
+    std::cout << "║           INTERACTIVE TASK PRODUCER                    ║\n";
+    std::cout << "║                                                        ║\n";
+    std::cout << "╚════════════════════════════════════════════════════════╝\n\n";
+}
+
+void displayMenu() {
+    std::cout << "\n┌────────────────── SELECT TASK TYPE ──────────────────┐\n";
+    for (size_t i = 0; i < TASK_TYPES.size(); i++) {
+        std::cout << "│ " << std::setw(2) << (i + 1) << ". " 
+                  << std::left << std::setw(48) << TASK_TYPES[i] << "│\n";
+    }
+    std::cout << "│ " << std::setw(2) << 11 << ". " 
+              << std::left << std::setw(48) << "View All Tasks Status" << "│\n";
+    std::cout << "│ " << std::setw(2) << 12 << ". " 
+              << std::left << std::setw(48) << "Search Specific Task" << "│\n";
+    std::cout << "│ " << std::setw(2) << 13 << ". " 
+              << std::left << std::setw(48) << "View Queue Statistics" << "│\n";
+    std::cout << "│ " << std::setw(2) << 0 << ". " 
+              << std::left << std::setw(48) << "Exit" << "│\n";
+    std::cout << "└──────────────────────────────────────────────────────┘\n";
+    std::cout << "\nEnter your choice: ";
+}
+
+std::string selectPriority() {
+    std::cout << "\n┌────────────── SELECT PRIORITY ──────────────┐\n";
+    std::cout << "│ 1. Critical (Highest priority)              │\n";
+    std::cout << "│ 2. High                                     │\n";
+    std::cout << "│ 3. Normal                                   │\n";
+    std::cout << "│ 4. Low (Lowest priority)                    │\n";
+    std::cout << "└─────────────────────────────────────────────┘\n";
+    std::cout << "Enter priority (1-4): ";
     
-    if (rand <= 10) return "critical";
-    if (rand <= 30) return "high";
-    if (rand <= 70) return "normal";
-    return "low";
+    int choice;
+    std::cin >> choice;
+    
+    switch (choice) {
+        case 1: return "critical";
+        case 2: return "high";
+        case 3: return "normal";
+        case 4: return "low";
+        default: return "normal";
+    }
+}
+
+std::string parseStringResponse(const std::string& resp) {
+    // Parse $5\r\nhello\r\n or +OK\r\n
+    if (resp.empty()) return "";
+    
+    if (resp[0] == '+') {
+        size_t pos = resp.find("\r\n");
+        return resp.substr(1, pos - 1);
+    }
+    
+    if (resp[0] == '$') {
+        size_t pos1 = resp.find("\r\n");
+        if (pos1 == std::string::npos) return "";
+        
+        std::string lenStr = resp.substr(1, pos1 - 1);
+        if (lenStr == "-1") return "(nil)";
+        
+        size_t pos2 = resp.find("\r\n", pos1 + 2);
+        return resp.substr(pos1 + 2, pos2 - pos1 - 2);
+    }
+    
+    return "";
 }
 
 void createTask(RedisClient& client, const std::string& taskType, const std::string& priority) {
     std::string taskId = generateTaskId();
     
-    std::cout << "\n[PRODUCER] Creating task: " << taskId << std::endl;
-    std::cout << "           Type: " << taskType << std::endl;
-    std::cout << "           Priority: " << priority << std::endl;
+    std::cout << "\n╔═══════════════ CREATING TASK ════════════════╗\n";
+    std::cout << "║ Task ID:   " << std::left << std::setw(33) << taskId << "║\n";
+    std::cout << "║ Type:      " << std::left << std::setw(33) << taskType << "║\n";
+    std::cout << "║ Priority:  " << std::left << std::setw(33) << priority << "║\n";
+    std::cout << "╚══════════════════════════════════════════════╝\n";
     
     // Store task metadata in hash
     std::vector<std::pair<std::string, std::string>> fields = {
@@ -57,57 +127,275 @@ void createTask(RedisClient& client, const std::string& taskType, const std::str
     // Add to appropriate priority queue
     std::string queueName = "queue:" + priority;
     if (priority == "critical" || priority == "high") {
-        client.lpush(queueName, taskId);  // Add to front (urgent)
+        client.lpush(queueName, taskId);
     } else {
-        client.rpush(queueName, taskId);  // Add to back (normal)
+        client.rpush(queueName, taskId);
     }
     
-    std::cout << "           ✓ Task queued in " << queueName << std::endl;
+    // Track this task
+    createdTasks[taskId] = taskType;
+    tasksCreatedThisSession++;  // Increment session counter
+    
+    std::cout << "✓ Task successfully queued in " << queueName << "\n";
+}
+
+void viewTaskStatus(RedisClient& client) {
+    clearScreen();
+    printHeader();
+    
+    if (createdTasks.empty()) {
+        std::cout << "No tasks created yet!\n";
+        std::cout << "\nPress Enter to continue...";
+        std::cin.ignore();
+        std::cin.get();
+        return;
+    }
+    
+    std::cout << "┌─────────────── YOUR TASKS STATUS ────────────────┐\n";
+    std::cout << "│ Task ID       │ Type              │ Status      │\n";
+    std::cout << "├───────────────┼───────────────────┼─────────────┤\n";
+    
+    int completedCount = 0;
+    int processingCount = 0;
+    int pendingCount = 0;
+    
+    for (const auto& pair : createdTasks) {
+        std::string taskId = pair.first;
+        std::string taskType = pair.second;
+        
+        // Get current status from Redis
+        std::string statusResp = client.hget(taskId, "status");
+        std::string status = parseStringResponse(statusResp);
+        
+        // Count statuses
+        if (status == "completed") completedCount++;
+        else if (status == "processing") processingCount++;
+        else pendingCount++;
+        
+        // Color code based on status
+        std::string statusDisplay;
+        if (status == "completed") {
+            statusDisplay = "\033[32m✓ Completed\033[0m";
+        } else if (status == "processing") {
+            statusDisplay = "\033[33m⚙ Processing\033[0m";
+        } else {
+            statusDisplay = "\033[90m⏳ Pending\033[0m";
+        }
+        
+        std::cout << "│ " << std::left << std::setw(14) << taskId 
+                  << "│ " << std::setw(18) << taskType 
+                  << "│ " << statusDisplay;
+        
+        // Padding to align with box
+        int padding = 12 - (status.length());
+        for (int i = 0; i < padding; i++) std::cout << " ";
+        std::cout << "│\n";
+    }
+    
+    std::cout << "└───────────────┴───────────────────┴─────────────┘\n";
+    
+    // Show session summary
+    std::cout << "\n📊 This Session Summary:\n";
+    std::cout << "  ────────────────────────────────────────────\n";
+    std::cout << "  Total Created:  " << tasksCreatedThisSession << " tasks\n";
+    std::cout << "  ⏳ Pending:      " << pendingCount << " tasks\n";
+    std::cout << "  ⚙  Processing:   " << processingCount << " tasks\n";
+    std::cout << "  ✓ Completed:    " << completedCount << " tasks\n";
+    
+    std::cout << "\nPress Enter to continue...";
+    std::cin.ignore();
+    std::cin.get();
+}
+
+void searchSpecificTask(RedisClient& client) {
+    clearScreen();
+    printHeader();
+    
+    std::cout << "┌─────────── SEARCH SPECIFIC TASK ────────────┐\n";
+    std::cout << "│                                             │\n";
+    std::cout << "│ Enter Task ID (e.g., task:1000):            │\n";
+    std::cout << "│ Or press 0 to go back                       │\n";
+    std::cout << "│                                             │\n";
+    std::cout << "└─────────────────────────────────────────────┘\n";
+    std::cout << "\nTask ID: ";
+    
+    std::string taskId;
+    std::cin >> taskId;
+    
+    if (taskId == "0") {
+        return;
+    }
+    
+    // Check if task exists in Redis
+    std::string statusResp = client.hget(taskId, "status");
+    std::string status = parseStringResponse(statusResp);
+    
+    if (status.empty() || status == "(nil)") {
+        std::cout << "\n╔════════════════════════════════════════════╗\n";
+        std::cout << "║                                            ║\n";
+        std::cout << "║  ❌ Task not found!                        ║\n";
+        std::cout << "║                                            ║\n";
+        std::cout << "╚════════════════════════════════════════════╝\n";
+        std::cout << "\nPress Enter to continue...";
+        std::cin.ignore();
+        std::cin.get();
+        return;
+    }
+    
+    // Get all task details
+    std::string typeResp = client.hget(taskId, "type");
+    std::string type = parseStringResponse(typeResp);
+    
+    std::string priorityResp = client.hget(taskId, "priority");
+    std::string priority = parseStringResponse(priorityResp);
+    
+    std::string createdResp = client.hget(taskId, "created_at");
+    std::string created = parseStringResponse(createdResp);
+    
+    // Convert timestamp to readable format
+    std::string createdTime = "Unknown";
+    if (!created.empty() && created != "(nil)") {
+        time_t timestamp = std::stoll(created);
+        char buffer[80];
+        struct tm* timeinfo = localtime(&timestamp);
+        strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", timeinfo);
+        createdTime = buffer;
+    }
+    
+    // Display task details with nice formatting
+    std::cout << "\n╔════════════════════════════════════════════╗\n";
+    std::cout << "║       TASK DETAILS: " << std::left << std::setw(20) << taskId << "║\n";
+    std::cout << "╠════════════════════════════════════════════╣\n";
+    std::cout << "║                                            ║\n";
+    std::cout << "║  Type:       " << std::left << std::setw(28) << type << "║\n";
+    std::cout << "║  Priority:   " << std::left << std::setw(28) << priority << "║\n";
+    
+    // Color-coded status
+    std::string statusDisplay;
+    if (status == "completed") {
+        statusDisplay = "\033[32mcompleted\033[0m";
+    } else if (status == "processing") {
+        statusDisplay = "\033[33mprocessing\033[0m";
+    } else {
+        statusDisplay = "\033[90mpending\033[0m";
+    }
+    
+    std::cout << "║  Status:     " << statusDisplay;
+    // Add padding to align (account for ANSI codes)
+    int padding = 28 - status.length();
+    for (int i = 0; i < padding; i++) std::cout << " ";
+    std::cout << "║\n";
+    
+    std::cout << "║  Created:    " << std::left << std::setw(28) << createdTime << "║\n";
+    std::cout << "║                                            ║\n";
+    std::cout << "╚════════════════════════════════════════════╝\n";
+    
+    std::cout << "\nPress Enter to continue...";
+    std::cin.ignore();
+    std::cin.get();
+}
+
+void viewQueueStats(RedisClient& client) {
+    clearScreen();
+    printHeader();
+    
+    std::cout << "┌────────────── QUEUE STATISTICS ──────────────┐\n";
+    
+    auto printQueueStat = [&](const std::string& name, const std::string& queue) {
+        std::string resp = client.llen(queue);
+        std::string count = "0";
+        if (!resp.empty() && resp[0] == ':') {
+            size_t pos = resp.find("\r\n");
+            count = resp.substr(1, pos - 1);
+        }
+        
+        std::cout << "│ " << std::left << std::setw(15) << name 
+                  << ": " << std::setw(25) << count << "│\n";
+    };
+    
+    printQueueStat("🔴 Critical", "queue:critical");
+    printQueueStat("🟠 High", "queue:high");
+    printQueueStat("🟡 Normal", "queue:normal");
+    printQueueStat("🟢 Low", "queue:low");
+    
+    std::cout << "└──────────────────────────────────────────────┘\n";
+    
+    // Show session-specific stats
+    std::cout << "\n📊 This Session:\n";
+    std::cout << "  ────────────────────────────────────────────\n";
+    std::cout << "  Tasks Created:  " << tasksCreatedThisSession << " tasks\n";
+    
+    std::cout << "\nPress Enter to continue...";
+    std::cin.ignore();
+    std::cin.get();
 }
 
 int main(int argc, char* argv[]) {
-    int numTasks = 20;
-    int delayMs = 1000;
+    clearScreen();
+    printHeader();
     
-    if (argc > 1) numTasks = std::stoi(argv[1]);
-    if (argc > 2) delayMs = std::stoi(argv[2]);
-    
-    std::cout << "========================================\n";
-    std::cout << "  TASK PRODUCER\n";
-    std::cout << "========================================\n";
     std::cout << "Connecting to Redis-Lite at 127.0.0.1:6379...\n";
     
     RedisClient client;
     if (!client.connect()) {
-        std::cerr << "Failed to connect to Redis server!\n";
+        std::cerr << "\n❌ Failed to connect to Redis server!\n";
         std::cerr << "Make sure ./redis-lite is running\n";
         return 1;
     }
     
-    std::cout << "✓ Connected successfully!\n";
-    std::cout << "\nProducing " << numTasks << " tasks...\n";
-    std::cout << "========================================\n";
+    std::cout << "✓ Connected successfully!\n\n";
     
-    for (int i = 0; i < numTasks; i++) {
-        std::string taskType = randomTaskType();
-        std::string priority = randomPriority();
+    // Clear old completed tasks from previous sessions
+    std::cout << "🧹 Clearing old completed tasks...\n";
+    client.command({"DEL", "tasks:completed"});
+    std::cout << "✓ Ready for new session!\n";
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    
+    while (true) {
+        clearScreen();
+        printHeader();
+        displayMenu();
         
-        createTask(client, taskType, priority);
+        int choice;
+        std::cin >> choice;
         
-        // Small delay between tasks
-        std::this_thread::sleep_for(std::chrono::milliseconds(delayMs));
+        if (choice == 0) {
+            clearScreen();
+            std::cout << "\n╔═══════════════════════════════════════════╗\n";
+            std::cout << "║                                           ║\n";
+            std::cout << "║     Thank you for using Task Producer!    ║\n";
+            std::cout << "║                                           ║\n";
+            std::cout << "╚═══════════════════════════════════════════╝\n\n";
+            break;
+        }
+        
+        if (choice >= 1 && choice <= 10) {
+            // Create task
+            std::string taskType = TASK_TYPES[choice - 1];
+            std::string priority = selectPriority();
+            createTask(client, taskType, priority);
+            
+            std::cout << "\nPress Enter to continue...";
+            std::cin.ignore();
+            std::cin.get();
+        }
+        else if (choice == 11) {
+            // View all tasks status
+            viewTaskStatus(client);
+        }
+        else if (choice == 12) {
+            // Search specific task
+            searchSpecificTask(client);
+        }
+        else if (choice == 13) {
+            // View queue stats
+            viewQueueStats(client);
+        }
+        else {
+            std::cout << "\n❌ Invalid choice! Please try again.\n";
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
     }
-    
-    std::cout << "\n========================================\n";
-    std::cout << "✓ All tasks created!\n";
-    std::cout << "========================================\n";
-    
-    // Show queue stats
-    std::cout << "\nQueue Statistics:\n";
-    std::cout << "  Critical: " << client.llen("queue:critical") << std::endl;
-    std::cout << "  High:     " << client.llen("queue:high") << std::endl;
-    std::cout << "  Normal:   " << client.llen("queue:normal") << std::endl;
-    std::cout << "  Low:      " << client.llen("queue:low") << std::endl;
     
     return 0;
 }
