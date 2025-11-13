@@ -1,4 +1,29 @@
-Lfruits apple banana orange
+Lqueue:low
+Lqueue:high
+Lqueue:critical
+Ltasks:completed task:1019 task:1018 task:1017 task:1016 task:1015 task:1014 task:1013 task:1012 task:1011 task:1009 task:1010 task:1008 task:1005 task:1006 task:1002 task:1000 task:1001 task:1007 task:1004 task:1003 task:1019 task:1018 task:1017 task:1016 task:1015 task:1014 task:1013 task:1012 task:1011 task:1010 task:1009 task:1008 task:1007 task:1006 task:1005 task:1004 task:1003 task:1002 task:1001 task:1000
+Lqueue:normal
 Lcolours green blue
-Huser:100 name:bob age:30 email:bob@example.com
-Huser:200 name:Eve age:25 email:eve@example.com
+Lfruits apple banana orange
+Htask:1019 completed_at:1762627150 worker_id:3 status:completed priority:high created_at:1762627148 type:send_email
+Htask:1018 completed_at:1762627148 worker_id:3 status:completed priority:high created_at:1762627147 type:process_payment
+Htask:1016 completed_at:1762627147 worker_id:2 status:completed priority:normal created_at:1762627145 type:resize_image
+Htask:1015 completed_at:1762627146 worker_id:3 status:completed priority:high created_at:1762627144 type:resize_image
+Htask:1012 completed_at:1762627143 worker_id:3 status:completed priority:normal created_at:1762627141 type:send_email
+Htask:1011 completed_at:1762627142 worker_id:2 status:completed priority:normal created_at:1762627140 type:send_email
+Huser:100 email:bob@example.com age:30 name:bob
+Htask:1010 completed_at:1762627141 worker_id:3 status:completed priority:high created_at:1762627139 type:process_payment
+Huser:200 email:eve@example.com age:25 name:Eve
+Htask:1008 completed_at:1762627141 worker_id:2 status:completed priority:normal created_at:1762627137 type:backup_database
+Htask:1000 completed_at:1762627139 worker_id:2 status:completed priority:normal created_at:1762627129 type:process_payment
+Htask:1017 completed_at:1762627147 worker_id:3 status:completed priority:low created_at:1762627146 type:generate_report
+Htask:1014 completed_at:1762627144 worker_id:1 status:completed priority:normal created_at:1762627143 type:send_email
+Htask:1013 completed_at:1762627143 worker_id:1 status:completed priority:low created_at:1762627142 type:resize_image
+Htask:1004 completed_at:1762627138 worker_id:1 status:completed priority:critical created_at:1762627133 type:process_payment
+Htask:1001 completed_at:1762627139 worker_id:1 status:completed priority:normal created_at:1762627130 type:process_payment
+Htask:1002 completed_at:1762627140 worker_id:3 status:completed priority:normal created_at:1762627131 type:backup_database
+Htask:1003 completed_at:1762627138 worker_id:2 status:completed priority:high created_at:1762627132 type:resize_image
+Htask:1005 completed_at:1762627140 worker_id:1 status:completed priority:normal created_at:1762627134 type:generate_report
+Htask:1006 completed_at:1762627140 worker_id:2 status:completed priority:normal created_at:1762627135 type:backup_database
+Htask:1009 completed_at:1762627141 worker_id:1 status:completed priority:normal created_at:1762627138 type:backup_database
+Htask:1007 completed_at:1762627138 worker_id:3 status:completed priority:high created_at:1762627136 type:process_payment
