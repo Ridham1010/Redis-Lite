@@ -27,4 +27,6 @@ int main(int argc,char* argv[]){
         }
     });
     persistanceThread.detach();
+    server.run();  // ← Start the server!
+    return 0;
 }
