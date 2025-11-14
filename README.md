@@ -5,7 +5,9 @@ A lightweight implementation of a Redis-like in-memory data store written in C++
 ## Authors
 
 Ridham1010 (Ridham Shah - B24CS1064)
+
 centauri1219 (Atharv Dhuvad - B24CS1085)
+
 shreyshah (Shrey Shah - B24CS1111)
 
 ## Features
