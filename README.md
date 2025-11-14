@@ -1,6 +1,12 @@
 # Redis-Lite
 
-A lightweight implementation of a Redis-like in-memory data store written in C++. This project demonstrates core networking concepts, multi-threading, and RESP (REdis Serialization Protocol) parsing.
+A lightweight implementation of a Redis-like in-memory data store written in C++. This project demonstrates core networking concepts, data structures, multi-threading, and RESP (REdis Serialization Protocol) parsing.
+
+## Authors
+
+Ridham1010 (Ridham Shah - B24CS1064)
+centauri1219 (Atharv Dhuvad - B24CS1085)
+shreyshah (Shrey Shah - B24CS1111)
 
 ## Features
 
@@ -136,9 +142,7 @@ See the [LICENSE](LICENSE) file for details.
 
 Contributions are welcome! Feel free to submit issues and pull requests.
 
-## Author
 
-Ridham1010
 
 ---
 
