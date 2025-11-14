@@ -70,7 +70,9 @@
         "fstream": "cpp",
         "iomanip": "cpp",
         "span": "cpp",
-        "text_encoding": "cpp"
+        "text_encoding": "cpp",
+        "csignal": "cpp",
+        "map": "cpp"
     },
     "git.ignoreLimitWarning": true
 }
